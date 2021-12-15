@@ -1,0 +1,23 @@
+{
+  "name": "warp-core",
+  "description": "customized environment for web3 development",
+  "version": "0.0.3",
+  "private": true,
+  "workspaces": [
+    "app",
+    "chain"
+  ],
+  "scripts": {
+    "chain": "yarn workspace @warp-core/chain chain",
+    "start": "yarn workspace @warp-core/app start",
+    "build": "yarn workspace @warp-core/app build",
+    "test:app": "yarn workspace @warp-core/app test",
+    "eject": "yarn workspace @warp-core/app eject",
+    "compile": "yarn workspace @warp-core/chain compile",
+    "test:chain": "yarn workspace @warp-core/chain test",
+    "deploy": "yarn workspace @warp-core/chain deploy"
+  },
+  "devDependencies": {
+    "ts-node": "^9.1.1"
+  }
+}
