@@ -19,8 +19,9 @@ contract ZVault is IERC20 {
     event StrategyRegistered(address sContract);
     event StrategyRemoved(address sContract);
     event ShutDown(bool active);
-    event DaiMovedFromAaveToVault(uint256 amount);
-    event DaiMovedFromTreasuryToVault(uint256 amount);
+    event DaiMovedFromVaultToAaveStrategy(uint256 amount);
+    event DaiMovedFromToVaulToCompStrategy(uint256 amount);
+    event FundsSwapped(uint256 amount, address strategyContract);
 
     // modifiers
 
@@ -79,18 +80,20 @@ contract ZVault is IERC20 {
         emit Withdraw(to, amount);
     }
 
-    function moveDaiToAave(uint256 amount) public notShutdown {
+    function moveDaiToAaveStrategy(uint256 amount) public notShutdown {
         uint256 _daiInVault = getDaiBalanceInVault();
         require(_daiInVault >= _amount, "INSUFFICIENT FUNDS TO MOVE");
         _moveDaiToAave(amount);
+        emit DaiMovedFromAaveToVaultStrategy(amount);
     }
 
-    function moveDaiFromAave(uint256 amount) public notShutdown {}
+    function moveDaiFromAaveStrategy(uint256 amount) public notShutdown {}
 
-    function moveDaiToComp(uint256 amount) public notShutdown {
+    function moveDaiToCompStrategy(uint256 amount) public notShutdown {
         uint256 _daiInVault = getDaiBalanceInVault();
         require(_daiInVault >= _amount, "INSUFFICIENT FUNDS TO MOVE");
         _moveDaiToComp(amount);
+        DaiMovedFromToVaulToCompStrategy(amount);
     }
 
     function moveDaiFromComp(uint256 amount) public notShutdown {}
@@ -101,5 +104,10 @@ contract ZVault is IERC20 {
 
     function _moveDaiToComp(uint256 _amount) internal {
         require(_amount > 0, "NO ZERO DEPOSITS");
+    }
+
+    function _swapFunds(uint256 amount, address strategyContract) internal {
+        require(_amount > 0, "FUNDS MOVED ARE 0 OR NEGATIVE");
+        emit FundsSwapped(amount, strategyContract);
     }
 }
