@@ -1,16 +1,21 @@
 pragma solidity 0.8.7;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract ZVault is IERC20 {
-    address strategyContract;
+contract ZVault is ERC20, Ownable {
+    address[] strategyContracts;
+    address AaveStrategy = "x";
+    address Compstrategy = "y";
 
-    IERC20 public DAI;
+    ERC20 public DAI;
+    ERC20 public zDAI;
 
     //mappings
     mapping(address => uint256) public DAIBalanceInVault;
-    mapping(address => uint256) public yTokenBalanceInVault;
+    mapping(address => uint256) public zDAIBalanceInVault;
     mapping(address => bool) public isRegisteredStrategy;
     mapping(address => bool) public isShutDown;
+    mapping(uint256 => address) public startegyAddress;
 
     // events
     event Transfer(address from, address to, uint256 amount);
@@ -19,14 +24,15 @@ contract ZVault is IERC20 {
     event StrategyRegistered(address sContract);
     event StrategyRemoved(address sContract);
     event ShutDown(bool active);
-    event DaiMovedFromVaultToAaveStrategy(uint256 amount);
-    event DaiMovedFromToVaulToCompStrategy(uint256 amount);
-    event FundsSwapped(uint256 amount, address strategyContract);
+    event DaiMovedToStrategy(uint256 amount, address sConract);
+    event DaiRemovedFromStrategy(uint256 amount, address sConract);
+
+    // event FundsSwapped(uint256 amount, address strategyContract);
 
     // modifiers
 
-    modifier notShutdown() {
-        require(!isShutdown, "CONTRACT IS SHUTDOWN");
+    modifier notShutdown(address sContract) {
+        require(!isShutdown[sContract], "CONTRACT IS SHUTDOWN");
         _;
     }
 
@@ -50,29 +56,55 @@ contract ZVault is IERC20 {
         return yTokenBalanceInVault[user];
     }
 
-    function setNewStrategy(address newContract)
+    // * SETTERS * //
+    function setNewStrategy(address newContract, bool registered)
         external
         onlyOwner
         notShutdown
     {
         strategyContract = newContract;
+        registered[newContract] = true;
 
         emit StrategyRegistered(newContract);
     }
 
-    function checkBalanceInAave(address user) public notShutdown {
+    function checkBalanceInStrategy(address user, address sContract) public {
+        if (sContract == AaveStrategy) {
+            _checkBalanceInAave(user);
+        }
+        if (sContract == Compstrategy) {
+            _checkBalanceInComp(user);
+        }
+    }
+
+    function _checkBalanceInAave(address user) internal {
         // call balance of function from strategy contract
     }
 
-    function checkBalanceInCompound(address user) public notShutdown {
+    function _checkBalanceInComp(address user) internal {
         // call balance of function from strategy contract
     }
+
+    function checkProfits(address user, address sContract) public {
+        // check zDAI profits from both Aave and Comp
+        if (sContract == AaveStrategy) {
+            _checkProfitsInAave(user);
+        }
+        if (sContract == Compstrategy) {
+            _checkProfitsInComp(user);
+        }
+    }
+
+    function _checkProfitsInAave(address user) internal {}
+
+    function _checkProfitsInComp(address user) internal {}
 
     // * VAULT LOGIC * //
 
     function deposit(uint256 amount) public notShutdown {
-        require(DAI.transferFrom(address(this), _amount), "DEPOSIT FAILED");
+        require(DAI.transferFrom(msg.sender, _amount), "DEPOSIT FAILED");
         emit Deposit(amount);
+        // when deposit they need to get yDAI back, gets minted into account
     }
 
     function withdraw(address to, uint256 amount) public notShutdown {
@@ -80,23 +112,21 @@ contract ZVault is IERC20 {
         emit Withdraw(to, amount);
     }
 
-    function moveDaiToAaveStrategy(uint256 amount) public notShutdown {
+    function moveDaiToStrategy(uint256 amount, address sContract)
+        public
+        notShutdown
+        onlyOwner
+    {
         uint256 _daiInVault = getDaiBalanceInVault();
-        require(_daiInVault >= _amount, "INSUFFICIENT FUNDS TO MOVE");
-        _moveDaiToAave(amount);
-        emit DaiMovedFromAaveToVaultStrategy(amount);
+        require(_daiInVault >= amount, "INSUFFICIENT FUNDS TO MOVE");
+        if (sContract == AaveStrategy) {
+            _moveDaiToAave(amount);
+        }
+        if (sContract == Compstrategy) {
+            _moveDaiToComp(amount);
+        }
+        emit DaiMovedToStrategy(amount, sContract);
     }
-
-    function moveDaiFromAaveStrategy(uint256 amount) public notShutdown {}
-
-    function moveDaiToCompStrategy(uint256 amount) public notShutdown {
-        uint256 _daiInVault = getDaiBalanceInVault();
-        require(_daiInVault >= _amount, "INSUFFICIENT FUNDS TO MOVE");
-        _moveDaiToComp(amount);
-        DaiMovedFromToVaulToCompStrategy(amount);
-    }
-
-    function moveDaiFromComp(uint256 amount) public notShutdown {}
 
     function _moveDaiToAave(uint256 _amount) internal {
         require(_amount > 0, "NO ZERO DEPOSITS");
@@ -106,8 +136,26 @@ contract ZVault is IERC20 {
         require(_amount > 0, "NO ZERO DEPOSITS");
     }
 
-    function _swapFunds(uint256 amount, address strategyContract) internal {
-        require(_amount > 0, "FUNDS MOVED ARE 0 OR NEGATIVE");
-        emit FundsSwapped(amount, strategyContract);
+    function removeDaiFromStrategy(uint256 amount, address sContract)
+        public
+        notShutdown
+    {
+        if (sContract == AaveStrategy) {
+            _moveDaiToAave(amount);
+        }
+        if (sContract == Compstrategy) {
+            _moveDaiToComp(amount);
+        }
+
+        emit DaiRemovedFromStrategy(amount, sContract);
     }
+
+    function _removeDaiFromAave(uint256 _amount) internal {}
+
+    function _removeDaiFromComp(uint256 _amount) internal {}
+
+    // function _swapFunds(uint256 amount, address strategyContract) internal {
+    //     require(_amount > 0, "FUNDS MOVED ARE 0 OR NEGATIVE");
+    //     emit FundsSwapped(amount, strategyContract);
+    // }
 }
