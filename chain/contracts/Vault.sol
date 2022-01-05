@@ -1,13 +1,15 @@
 pragma solidity 0.8.7;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "./interfaces/IAaveStrategy.sol";
 
 contract ZVault is ERC20, Ownable {
     address[] strategyContracts;
     address AaveStrategy = "x";
     address Compstrategy = "y";
 
-    ERC20 public DAI;
+    IERC20 public DAI;
     ERC20 public zDAI;
 
     //mappings
@@ -26,8 +28,6 @@ contract ZVault is ERC20, Ownable {
     event ShutDown(bool active);
     event DaiMovedToStrategy(uint256 amount, address sConract);
     event DaiRemovedFromStrategy(uint256 amount, address sConract);
-
-    // event FundsSwapped(uint256 amount, address strategyContract);
 
     // modifiers
 
@@ -57,13 +57,13 @@ contract ZVault is ERC20, Ownable {
     }
 
     // * SETTERS * //
-    function setNewStrategy(address newContract, bool registered)
+    function setNewStrategy(address newContract)
         external
         onlyOwner
         notShutdown
     {
         strategyContract = newContract;
-        registered[newContract] = true;
+        isRegisteredStrategy[newContract] = true;
 
         emit StrategyRegistered(newContract);
     }
@@ -79,6 +79,7 @@ contract ZVault is ERC20, Ownable {
 
     function _checkBalanceInAave(address user) internal {
         // call balance of function from strategy contract
+        IAaveStrategy.getTotalBalance(user);
     }
 
     function _checkBalanceInComp(address user) internal {
@@ -117,45 +118,44 @@ contract ZVault is ERC20, Ownable {
         notShutdown
         onlyOwner
     {
-        uint256 _daiInVault = getDaiBalanceInVault();
+        uint256 _daiInVault = getDaiBalanceInVault(msg.sender);
         require(_daiInVault >= amount, "INSUFFICIENT FUNDS TO MOVE");
         if (sContract == AaveStrategy) {
-            _moveDaiToAave(amount);
+            _moveDaiToAaveStrategy(amount);
         }
         if (sContract == Compstrategy) {
-            _moveDaiToComp(amount);
+            _moveDaiToCompStrategy(amount);
         }
         emit DaiMovedToStrategy(amount, sContract);
     }
 
-    function _moveDaiToAave(uint256 _amount) internal {
+    function _moveDaiToAaveStrategy(uint256 _amount) internal {
         require(_amount > 0, "NO ZERO DEPOSITS");
     }
 
-    function _moveDaiToComp(uint256 _amount) internal {
+    function _moveDaiToCompStrategy(uint256 _amount) internal {
         require(_amount > 0, "NO ZERO DEPOSITS");
     }
 
     function removeDaiFromStrategy(uint256 amount, address sContract)
         public
         notShutdown
+        onlyOwner
     {
+        // remove dai from staregy contract back to Vault
         if (sContract == AaveStrategy) {
-            _moveDaiToAave(amount);
+            _removeDaiToAave(amount);
         }
         if (sContract == Compstrategy) {
-            _moveDaiToComp(amount);
+            _removeDaiToComp(amount);
         }
 
         emit DaiRemovedFromStrategy(amount, sContract);
     }
 
-    function _removeDaiFromAave(uint256 _amount) internal {}
+    function _removeDaiFromAave(uint256 _amount) internal {
+        // cannot remove more than balance in AAve
+    }
 
     function _removeDaiFromComp(uint256 _amount) internal {}
-
-    // function _swapFunds(uint256 amount, address strategyContract) internal {
-    //     require(_amount > 0, "FUNDS MOVED ARE 0 OR NEGATIVE");
-    //     emit FundsSwapped(amount, strategyContract);
-    // }
 }
