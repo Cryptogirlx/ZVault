@@ -95,7 +95,26 @@ contract ZVault is ERC20, Ownable {
     }
 
     function withdraw(address to, uint256 amount) public notShutdown {
+        uint256 _daiInVault = getDaiBalanceInVault(msg.sender);
+        uint256 _daiInAave = IAaveStrategy.getTotalBalance(msg.sender);
+        require(
+            _daiInAave + _daiInVault >= amount,
+            "INSUFFICENT FUNDS TO WITHDRAW"
+        );
         require(to != address(0), "WITHDRAW TO ZERO ADDRESS");
+
+        uint256 _zDaiBalanceBefore = balanceOf(msg.sender);
+        // to withdraw you have to burn zDAIn
+        _burn(msg.sender, amount);
+
+        uint256 _zDaiBalanceAfter = balanceOf(msg.sender);
+        // check if tokens are burned
+
+        require(
+            _zDaiBalanceAfter = _zDaiBalanceBefore - amount,
+            "YOU HAVE TO BURN ZDAI TO WITHDRAW"
+        );
+
         emit Withdraw(to, amount);
     }
 
@@ -117,11 +136,12 @@ contract ZVault is ERC20, Ownable {
 
     function _moveDaiToAaveStrategy(uint256 _amount) internal {
         require(_amount > 0, "NO ZERO DEPOSITS");
-        DAI.transferFrom(msg.sender, AaveStrategy, _amount);
+        DAI.transferFrom(address(this), AaveStrategy, _amount);
     }
 
     function _moveDaiToCompStrategy(uint256 _amount) internal {
         require(_amount > 0, "NO ZERO DEPOSITS");
+        DAI.transferFrom(address(this), CompStrategy, _amount);
     }
 
     function removeDaiFromStrategy(uint256 amount, address sContract)
@@ -131,10 +151,10 @@ contract ZVault is ERC20, Ownable {
     {
         // remove dai from staregy contract back to Vault
         if (sContract == AaveStrategy) {
-            _removeDaiToAave(amount);
+            _removeDaiFromAave(amount);
         }
         if (sContract == Compstrategy) {
-            _removeDaiToComp(amount);
+            _removeDaiFromComp(amount);
         }
 
         emit DaiRemovedFromStrategy(amount, sContract);
