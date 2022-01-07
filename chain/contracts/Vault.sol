@@ -6,8 +6,8 @@ import "./interfaces/IAaveStrategy.sol";
 
 contract ZVault is ERC20, Ownable {
     // address[] strategyContracts;
-    address AaveStrategy = "x";
-    address CompStrategy = "y";
+    address AaveStrategy;
+    address CompStrategy;
 
     ERC20 public DAI;
 
@@ -41,7 +41,7 @@ contract ZVault is ERC20, Ownable {
         address _AaveStrategy,
         address _AaveStrategy,
         address _DAI
-    ) {
+    ) ERC20("zDAI", "zDAI") {
         _AaveStrategy = AaveStrategy;
         _AaveStrategy = CompStrategy;
         DAI = ERC20(_DAI); // where do we get the DAI address from?
@@ -79,6 +79,73 @@ contract ZVault is ERC20, Ownable {
     //     emit StrategyRegistered(newContract);
     // }
 
+    // * VAULT LOGIC * //
+
+    function deposit(uint256 amount) public notShutdown returns (uint256) {
+        require(
+            DAI.balanceOf(msg.sender) >= amount,
+            "NOT ENOUGH BALANCE TO DEPOSIT"
+        );
+        require(0 > amount, "CANNOT DEPOSIT 0");
+        DAI.transferFrom(msg.sender, address(this), amount);
+        emit Deposit(amount);
+
+        // mints 1:1 zDAI to users account
+        _mint(msg.sender, amount);
+    }
+
+    function withdraw(address to, uint256 amount) public notShutdown {
+        require(to != address(0), "WITHDRAW TO ZERO ADDRESS");
+        emit Withdraw(to, amount);
+    }
+
+    function moveDaiToStrategy(uint256 amount, address sContract)
+        public
+        notShutdown
+        onlyOwner
+    {
+        uint256 _daiInVault = getDaiBalanceInVault(msg.sender);
+        require(_daiInVault >= amount, "INSUFFICIENT FUNDS TO MOVE");
+        if (sContract == AaveStrategy) {
+            _moveDaiToAaveStrategy(amount);
+        }
+        if (sContract == Compstrategy) {
+            _moveDaiToCompStrategy(amount);
+        }
+        emit DaiMovedToStrategy(amount, sContract);
+    }
+
+    function _moveDaiToAaveStrategy(uint256 _amount) internal {
+        require(_amount > 0, "NO ZERO DEPOSITS");
+        DAI.transferFrom(msg.sender, AaveStrategy, _amount);
+    }
+
+    function _moveDaiToCompStrategy(uint256 _amount) internal {
+        require(_amount > 0, "NO ZERO DEPOSITS");
+    }
+
+    function removeDaiFromStrategy(uint256 amount, address sContract)
+        public
+        notShutdown
+        onlyOwner
+    {
+        // remove dai from staregy contract back to Vault
+        if (sContract == AaveStrategy) {
+            _removeDaiToAave(amount);
+        }
+        if (sContract == Compstrategy) {
+            _removeDaiToComp(amount);
+        }
+
+        emit DaiRemovedFromStrategy(amount, sContract);
+    }
+
+    function _removeDaiFromAave(uint256 _amount) internal {
+        // cannot remove more than balance in AAve
+    }
+
+    function _removeDaiFromComp(uint256 _amount) internal {}
+
     function checkBalanceInStrategy(address user, address sContract) public {
         if (sContract == AaveStrategy) {
             _checkBalanceInAave(user);
@@ -111,70 +178,6 @@ contract ZVault is ERC20, Ownable {
 
     function _checkProfitsInComp(address user) internal {}
 
-    // * VAULT LOGIC * //
-
-    function deposit(uint256 amount) public notShutdown returns (uint256) {
-        require(
-            DAI.transferFrom(msg.sender, _amount) >= amount,
-            "DEPOSIT FAILED"
-        );
-
-        emit Deposit(amount);
-        // when deposit they need to get yDAI back, gets minted into account
-    }
-
-    function withdraw(address to, uint256 amount) public notShutdown {
-        require(to != address(0), "WITHDRAW TO ZERO ADDRESS");
-        emit Withdraw(to, amount);
-    }
-
-    function moveDaiToStrategy(uint256 amount, address sContract)
-        public
-        notShutdown
-        onlyOwner
-    {
-        uint256 _daiInVault = getDaiBalanceInVault(msg.sender);
-        require(_daiInVault >= amount, "INSUFFICIENT FUNDS TO MOVE");
-        if (sContract == AaveStrategy) {
-            _moveDaiToAaveStrategy(amount);
-        }
-        if (sContract == Compstrategy) {
-            _moveDaiToCompStrategy(amount);
-        }
-        emit DaiMovedToStrategy(amount, sContract);
-    }
-
-    function _moveDaiToAaveStrategy(uint256 _amount) internal {
-        require(_amount > 0, "NO ZERO DEPOSITS");
-        DAI.trasferFrom(msg.sender, AaveStrategy, _amount);
-    }
-
-    function _moveDaiToCompStrategy(uint256 _amount) internal {
-        require(_amount > 0, "NO ZERO DEPOSITS");
-    }
-
-    function removeDaiFromStrategy(uint256 amount, address sContract)
-        public
-        notShutdown
-        onlyOwner
-    {
-        // remove dai from staregy contract back to Vault
-        if (sContract == AaveStrategy) {
-            _removeDaiToAave(amount);
-        }
-        if (sContract == Compstrategy) {
-            _removeDaiToComp(amount);
-        }
-
-        emit DaiRemovedFromStrategy(amount, sContract);
-    }
-
-    function _removeDaiFromAave(uint256 _amount) internal {
-        // cannot remove more than balance in AAve
-    }
-
-    function _removeDaiFromComp(uint256 _amount) internal {}
-
     function claimRewardsFromStrategy(address sContract) public onlyOwner {
         if (sContract == AaveStrategy) {
             _claimRewardsFromAave();
@@ -187,4 +190,12 @@ contract ZVault is ERC20, Ownable {
     function _claimRewardsFromAave() internal {}
 
     function _claimRewardsFromComp() internal {}
+
+    function shutdown(address sContract, bool _isShutdown)
+        external
+        override
+        onlyOwner
+    {
+        isShutdown[sContract] = _isShutdown;
+    }
 }
