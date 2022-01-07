@@ -59,14 +59,6 @@ contract ZVault is ERC20, Ownable {
         return DAIBalanceInVault[user];
     }
 
-    function getyTokenBalanceInVault(address user)
-        public
-        view
-        returns (uint256)
-    {
-        return yTokenBalanceInVault[user];
-    }
-
     // * SETTERS * //
     // function setNewStrategy(address newContract)
     //     external
@@ -122,6 +114,7 @@ contract ZVault is ERC20, Ownable {
             require(to != address(0), "WITHDRAW TO ZERO ADDRESS");
 
             _removeDaiFromAave(amount);
+            transferFrom(address(this), msg.sender, amount);
             emit DaiRemovedFromStrategy(amount, sContract);
         }
         // if (sContract == CompStrategy) {
@@ -183,22 +176,14 @@ contract ZVault is ERC20, Ownable {
     {
         // check zDAI profits from both Aave and Comp
         if (sContract == AaveStrategy) {
-            uint256 totalBal = IAaveStrategy.getTotalBalanceInAave(user);
-            uint256 totalDeposited = IAaveStrategy.getTotalBalanceInStrategy(
-                user
-            ); // how do I get the deposited amount;
-            uint256 daiProfits = totalBal - deposited;
-
+            uint256 daiProfits = IAaveStrategy.checkProfits(user);
             return daiProfits;
         }
-        if (sContract == Compstrategy) {
-            _checkProfitsInComp(user);
-        }
+        // if (sContract == Compstrategy) {
+        //     uint256 daiProfits = ICompStrategy.checkProfits(user);
+        //     return daiProfits;
+        // }
     }
-
-    function _checkProfitsInAave(address user) internal {}
-
-    function _checkProfitsInComp(address user) internal {}
 
     function claimRewardsFromStrategy(address sContract) public onlyOwner {
         if (sContract == AaveStrategy) {
