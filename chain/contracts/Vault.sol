@@ -5,17 +5,18 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "./interfaces/IAaveStrategy.sol";
 
 contract ZVault is ERC20, Ownable {
-    address[] strategyContracts;
+    // address[] strategyContracts;
     address AaveStrategy = "x";
-    address Compstrategy = "y";
+    address CompStrategy = "y";
 
-    IERC20 public DAI;
-    ERC20 public zDAI;
+    ERC20 public DAI;
+
+    // needs mint function to mint zDAI
 
     //mappings
     mapping(address => uint256) public DAIBalanceInVault;
     mapping(address => uint256) public zDAIBalanceInVault;
-    mapping(address => bool) public isRegisteredStrategy;
+    // mapping(address => bool) public isRegisteredStrategy;
     mapping(address => bool) public isShutDown;
     mapping(uint256 => address) public startegyAddress;
 
@@ -36,13 +37,23 @@ contract ZVault is ERC20, Ownable {
         _;
     }
 
-    constructor() {}
+    constructor(
+        address _AaveStrategy,
+        address _AaveStrategy,
+        address _DAI
+    ) {
+        _AaveStrategy = AaveStrategy;
+        _AaveStrategy = CompStrategy;
+        DAI = ERC20(_DAI); // where do we get the DAI address from?
+        DAI.approve(AaveStrategy, type(uint256).max);
+        DAI.approve(CompStrategy, type(uint256).max);
+    }
 
     // * VIEW FUNCTIONS * //
 
-    function isStrategy(address sContract) public view returns (bool) {
-        return isRegisteredStrategy[sContract];
-    }
+    // function isStrategy(address sContract) public view returns (bool) {
+    //     return isRegisteredStrategy[sContract];
+    // }
 
     function getDaiBalanceInVault(address user) public view returns (uint256) {
         return DAIBalanceInVault[user];
@@ -57,16 +68,16 @@ contract ZVault is ERC20, Ownable {
     }
 
     // * SETTERS * //
-    function setNewStrategy(address newContract)
-        external
-        onlyOwner
-        notShutdown
-    {
-        strategyContract = newContract;
-        isRegisteredStrategy[newContract] = true;
+    // function setNewStrategy(address newContract)
+    //     external
+    //     onlyOwner
+    //     notShutdown
+    // {
+    //     strategyContract = newContract; // needs to be replaced with array
+    //     isRegisteredStrategy[newContract] = true;
 
-        emit StrategyRegistered(newContract);
-    }
+    //     emit StrategyRegistered(newContract);
+    // }
 
     function checkBalanceInStrategy(address user, address sContract) public {
         if (sContract == AaveStrategy) {
@@ -102,8 +113,12 @@ contract ZVault is ERC20, Ownable {
 
     // * VAULT LOGIC * //
 
-    function deposit(uint256 amount) public notShutdown {
-        require(DAI.transferFrom(msg.sender, _amount), "DEPOSIT FAILED");
+    function deposit(uint256 amount) public notShutdown returns (uint256) {
+        require(
+            DAI.transferFrom(msg.sender, _amount) >= amount,
+            "DEPOSIT FAILED"
+        );
+
         emit Deposit(amount);
         // when deposit they need to get yDAI back, gets minted into account
     }
@@ -131,6 +146,7 @@ contract ZVault is ERC20, Ownable {
 
     function _moveDaiToAaveStrategy(uint256 _amount) internal {
         require(_amount > 0, "NO ZERO DEPOSITS");
+        DAI.trasferFrom(msg.sender, AaveStrategy, _amount);
     }
 
     function _moveDaiToCompStrategy(uint256 _amount) internal {
@@ -158,4 +174,17 @@ contract ZVault is ERC20, Ownable {
     }
 
     function _removeDaiFromComp(uint256 _amount) internal {}
+
+    function claimRewardsFromStrategy(address sContract) public onlyOwner {
+        if (sContract == AaveStrategy) {
+            _claimRewardsFromAave();
+        }
+        if (sContract == Compstrategy) {
+            _claimRewardsFromComp();
+        }
+    }
+
+    function _claimRewardsFromAave() internal {}
+
+    function _claimRewardsFromComp() internal {}
 }

@@ -5,7 +5,7 @@ interface IAaveStrategy {
         // get total balance including profits from Aave
     }
 
-    function moveFunds(uint256 amount) external notShutdown {
+    function moveFunds(uint256 amount) external {
         // deposit funds to Aave Lending Pool
     }
 

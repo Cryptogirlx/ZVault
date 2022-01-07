@@ -4,15 +4,32 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract AaveStrategy is IAaveStrategy, ERC20, Ownable {
     mapping(address => uint256) public daiInStrategy;
+    address public override aaveLendingPoolAddress;
 
-    constructor() {}
+    IERC20 public DAI;
+
+    constructor(
+        address _DAI,
+        address _aDAI,
+        address _aaveIncentivesController,
+        address _lendingPool
+    ) {
+        daiAddress = _DAI;
+        aaveLendingPoolAddress = _lendingPool;
+        DAI = IERC20(_DAI);
+        aDAI = IAToken(_aDAI);
+        AaveIncentivesController = IAaveIncentivesController(
+            _aaveIncentivesController
+        );
+        AaveLendingPool = ILendingPool(_lendingPool);
+
+        // Infinite approve Aave for DAI deposits
+        DAI.approve(_lendingPool, type(uint256).max);
+    }
 
     // modifiers
 
-    modifier notShutdown(address sContract) {
-        require(!isShutdown[sContract], "CONTRACT IS SHUTDOWN");
-        _;
-    }
+    function setLendingPool(address _AaveLendingPool) external onlyOwner {}
 
     function getTotalBalance(address user) external view returns (uint256) {
         // get total balance including profits from Aave
@@ -24,5 +41,13 @@ contract AaveStrategy is IAaveStrategy, ERC20, Ownable {
 
     function removeFunds(uint256 amount) external {
         // remove dai from Aave
+    }
+
+    function claimAaveRewards(uint256 _amountToClaim)
+        external
+        override
+        onlyOwner
+    {
+        // claiming Aave rewards
     }
 }
