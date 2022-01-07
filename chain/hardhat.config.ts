@@ -15,7 +15,7 @@ dotenv.config();
 const config: HardhatUserConfig = {
   defaultNetwork: "localhost",
   solidity: {
-    compilers: [{ version: "0.7.3", settings: {} }],
+    compilers: [{ version: "0.8.7", settings: {} }],
   },
   networks: {
     localhost: {

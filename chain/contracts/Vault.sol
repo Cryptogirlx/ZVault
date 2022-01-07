@@ -1,4 +1,4 @@
-pragma solidity 0.8.7;
+pragma solidity 0.8.0;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -114,7 +114,7 @@ contract ZVault is ERC20, Ownable {
             require(to != address(0), "WITHDRAW TO ZERO ADDRESS");
 
             _removeDaiFromAave(amount);
-            transferFrom(address(this), msg.sender, amount);
+            DAI.transferFrom(address(this), msg.sender, amount);
             emit DaiRemovedFromStrategy(amount, sContract);
         }
         // if (sContract == CompStrategy) {
