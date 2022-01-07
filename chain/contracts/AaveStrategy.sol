@@ -3,8 +3,9 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract AaveStrategy is IAaveStrategy, ERC20, Ownable {
-    mapping(address => uint256) public daiInStrategy;
     address public override aaveLendingPoolAddress;
+
+    mapping(address => uint256) daiDeposited;
 
     IERC20 public DAI;
 
@@ -31,7 +32,19 @@ contract AaveStrategy is IAaveStrategy, ERC20, Ownable {
 
     function setLendingPool(address _AaveLendingPool) external onlyOwner {}
 
-    function getTotalBalance(address user) external view returns (uint256) {
+    function getTotalBalanceInStrategy(address user)
+        external
+        view
+        returns (uint256)
+    {
+        return daiDeposited[user];
+    }
+
+    function getTotalBalanceInAave(address user)
+        external
+        view
+        returns (uint256)
+    {
         // get total balance including profits from Aave
     }
 
